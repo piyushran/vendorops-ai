@@ -38,16 +38,18 @@ async def upload_file(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     context: Annotated[AuthContext, Depends(require_permission_dependency("pipeline:write"))],
 ) -> UploadedFileResponse:
+    organization_id, workspace_id = tenant_ids(context)
+
     try:
         stored_upload = await store_upload(
             file,
             get_object_storage(settings),
+            workspace_id=str(workspace_id),
             max_size_bytes=settings.max_upload_size_mb * 1024 * 1024,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    organization_id, workspace_id = tenant_ids(context)
     uploaded_file = await create_uploaded_file(
         session,
         file_id=UUID(stored_upload.file_id),
