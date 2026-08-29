@@ -70,7 +70,6 @@ async def claim_next_job(
         "error_message": None,
         "updated_at": now,
     }
-    # The predicate makes SQLite concurrent claimers harmless even without row locks.
     result = await session.execute(
         update(ProcessingJob).where(ProcessingJob.id == candidate.id, eligible).values(**values)
     )
@@ -78,8 +77,7 @@ async def claim_next_job(
         await session.rollback()
         return None
     await session.commit()
-    claimed = await session.get(ProcessingJob, candidate.id)
-    return claimed
+    return await session.get(ProcessingJob, candidate.id)
 
 
 async def heartbeat_job(
@@ -102,10 +100,15 @@ async def heartbeat_job(
 
 
 async def recover_expired_jobs(session: AsyncSession) -> int:
+    """Recover dead workers without allowing crashed jobs to bypass max-attempt limits."""
     now = utc_now()
     result = await session.execute(
         update(ProcessingJob)
-        .where(ProcessingJob.status == RUNNING, ProcessingJob.lease_expires_at < now)
+        .where(
+            ProcessingJob.status == RUNNING,
+            ProcessingJob.lease_expires_at < now,
+            ProcessingJob.attempts < ProcessingJob.max_attempts,
+        )
         .values(
             status=QUEUED,
             next_run_at=now,
@@ -116,8 +119,62 @@ async def recover_expired_jobs(session: AsyncSession) -> int:
             updated_at=now,
         )
     )
+    recovered = result.rowcount or 0
+
+    terminal_result = await session.execute(
+        update(ProcessingJob)
+        .where(
+            ProcessingJob.status == RUNNING,
+            ProcessingJob.lease_expires_at < now,
+            ProcessingJob.attempts >= ProcessingJob.max_attempts,
+        )
+        .values(
+            status=FAILED,
+            failed_at=now,
+            lease_owner=None,
+            lease_expires_at=None,
+            execution_id=None,
+            error_message="Worker lease expired after the maximum number of attempts.",
+            updated_at=now,
+        )
+    )
+    terminal = terminal_result.rowcount or 0
+    if recovered or terminal:
+        await session.commit()
+    else:
+        await session.rollback()
+    return recovered + terminal
+
+
+async def request_job_run(session: AsyncSession, *, job: ProcessingJob) -> ProcessingJob:
+    """Make a job immediately eligible for the standalone worker."""
+    now = utc_now()
+    if job.status == COMPLETED:
+        raise InvalidJobTransition(f"Job '{job.id}' has already completed.")
+    if job.status == RUNNING:
+        raise InvalidJobTransition(f"Job '{job.id}' is already running.")
+    if job.status == FAILED:
+        job.status = QUEUED
+        job.failed_at = None
+        job.attempts = 0
+    elif job.status != QUEUED:
+        raise InvalidJobTransition(f"Cannot queue job {job.id} from {job.status}.")
+    job.next_run_at = now
+    job.error_message = None
+    job.lease_owner = None
+    job.lease_expires_at = None
+    job.execution_id = None
+    job.updated_at = now
+    await create_audit_log(
+        session,
+        action="job.run_requested",
+        entity_type="processing_job",
+        entity_id=job.id,
+        details={"status": QUEUED},
+    )
     await session.commit()
-    return result.rowcount or 0
+    await session.refresh(job)
+    return job
 
 
 async def complete_job(session: AsyncSession, *, job: ProcessingJob, worker_id: str) -> bool:
