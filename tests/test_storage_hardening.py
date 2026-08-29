@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from app.storage.backends import LocalObjectStorage, StorageError
+from app.storage.integrity import sha256_bytes
 from app.storage.keying import artifact_key
 
 
@@ -39,3 +40,29 @@ def test_local_storage_round_trip_is_binary_safe(tmp_path: Path) -> None:
     assert stored.size_bytes == 11
     assert storage.exists(stored.uri)
     assert storage.read_bytes(stored.uri) == b"%PDF-test\x00\xff"
+
+
+def test_local_storage_delete(tmp_path: Path) -> None:
+    storage = LocalObjectStorage(tmp_path)
+    stored = storage.put_bytes(
+        key="workspaces/ws-1/artifacts/file-1/invoice.pdf",
+        content=b"invoice",
+        content_type="application/pdf",
+    )
+
+    assert storage.exists(stored.uri)
+    storage.delete(stored.uri)
+    assert not storage.exists(stored.uri)
+
+
+def test_sha256_bytes_is_deterministic() -> None:
+    content = b"vendorops-artifact"
+
+    digest = sha256_bytes(content)
+
+    assert digest == sha256_bytes(content)
+    assert len(digest) == 64
+
+
+def test_sha256_bytes_changes_when_content_changes() -> None:
+    assert sha256_bytes(b"invoice-a") != sha256_bytes(b"invoice-b")
