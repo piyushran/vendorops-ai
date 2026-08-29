@@ -1,17 +1,17 @@
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import require_permission_dependency, tenant_ids
 from app.api.schemas import CreateJobRequest, ProcessingJobResponse
 from app.api.serializers import to_processing_job_response
 from app.auth.service import AuthContext
-from app.config.settings import Settings, get_settings
+from app.config.settings import get_settings
 from app.db.repositories import create_processing_job, get_processing_job, get_uploaded_file
 from app.db.session import get_db_session
-from app.workers.document_jobs import enqueue_document_job
+from app.workers.durable import InvalidJobTransition, request_job_run
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -81,11 +81,10 @@ async def get_job(
 )
 async def run_job(
     job_id: UUID,
-    background_tasks: BackgroundTasks,
-    settings: Annotated[Settings, Depends(get_settings)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     context: Annotated[AuthContext, Depends(require_permission_dependency("pipeline:write"))],
 ) -> ProcessingJobResponse:
+    """Request execution by the standalone worker without running work in the API process."""
     organization_id, workspace_id = tenant_ids(context)
     job = await get_processing_job(
         session,
@@ -99,17 +98,9 @@ async def run_job(
             detail=f"Job '{job_id}' was not found.",
         )
 
-    if job.status == "running":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Job '{job_id}' is already running.",
-        )
-    if job.status == "completed":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Job '{job_id}' has already completed.",
-        )
-
-    enqueue_document_job(background_tasks, settings=settings, job_id=job_id)
+    try:
+        job = await request_job_run(session, job=job)
+    except InvalidJobTransition as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     return to_processing_job_response(job)
