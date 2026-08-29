@@ -46,6 +46,7 @@ async def create_job(
         pipeline=request.pipeline,
         organization_id=organization_id,
         workspace_id=workspace_id,
+        max_attempts=get_settings().worker_max_attempts,
     )
 
     return to_processing_job_response(job)

@@ -87,6 +87,7 @@ async def create_processing_job(
     pipeline: str,
     organization_id: UUID | None = None,
     workspace_id: UUID | None = None,
+    max_attempts: int = 3,
 ) -> ProcessingJob:
     job = ProcessingJob(
         id=str(job_id),
@@ -95,6 +96,7 @@ async def create_processing_job(
         file_id=str(file_id),
         pipeline=pipeline,
         status="queued",
+        max_attempts=max_attempts,
     )
     session.add(job)
     await create_audit_log(
@@ -159,6 +161,14 @@ async def create_extracted_record(
     extracted: ExtractedBusinessRecord,
     raw_payload: dict,
 ) -> ExtractedRecord:
+    if job_id is not None:
+        existing = (
+            await session.execute(
+                select(ExtractedRecord).where(ExtractedRecord.job_id == str(job_id))
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            return existing
     record = ExtractedRecord(
         organization_id=str(organization_id) if organization_id else None,
         workspace_id=str(workspace_id) if workspace_id else None,
@@ -399,12 +409,16 @@ async def list_audit_logs(
     workspace_id: UUID | None = None,
     limit: int = 50,
 ) -> list[AuditLog]:
-    query = apply_tenant_filter(
-        select(AuditLog),
-        AuditLog,
-        organization_id=organization_id,
-        workspace_id=workspace_id,
-    ).order_by(AuditLog.created_at.desc()).limit(limit)
+    query = (
+        apply_tenant_filter(
+            select(AuditLog),
+            AuditLog,
+            organization_id=organization_id,
+            workspace_id=workspace_id,
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(limit)
+    )
     result = await session.execute(query)
     return list(result.scalars().all())
 
@@ -470,12 +484,16 @@ async def list_extraction_errors(
     workspace_id: UUID | None = None,
     limit: int = 50,
 ) -> list[ExtractionErrorLog]:
-    query = apply_tenant_filter(
-        select(ExtractionErrorLog),
-        ExtractionErrorLog,
-        organization_id=organization_id,
-        workspace_id=workspace_id,
-    ).order_by(ExtractionErrorLog.created_at.desc()).limit(limit)
+    query = (
+        apply_tenant_filter(
+            select(ExtractionErrorLog),
+            ExtractionErrorLog,
+            organization_id=organization_id,
+            workspace_id=workspace_id,
+        )
+        .order_by(ExtractionErrorLog.created_at.desc())
+        .limit(limit)
+    )
     result = await session.execute(query)
     return list(result.scalars().all())
 

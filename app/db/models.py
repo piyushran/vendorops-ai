@@ -2,14 +2,44 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import JSON as SQLAlchemyJSON
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import DateTime as SQLAlchemyDateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import TypeDecorator
 
 from app.db.base import Base
 
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+class UTCDateTime(TypeDecorator[datetime]):
+    """Persist instants as UTC and restore UTC tzinfo on SQLite.
+
+    PostgreSQL's ``TIMESTAMP WITH TIME ZONE`` already returns aware values. SQLite has no
+    timezone-aware timestamp type, so SQLAlchemy otherwise returns the same UTC instant as a
+    naive ``datetime``. Normalizing here keeps model values and worker comparisons consistent.
+    """
+
+    impl = SQLAlchemyDateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect: object) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            raise ValueError("UTCDateTime requires timezone-aware datetime values.")
+        return value.astimezone(UTC)
+
+    def process_result_value(self, value: datetime | None, dialect: object) -> datetime | None:
+        if value is None:
+            return None
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+# All persisted application timestamps follow this contract, including SQLite test databases.
+DateTime = UTCDateTime
 
 
 def new_uuid() -> str:
@@ -184,6 +214,16 @@ class ProcessingJob(Base):
     pipeline: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="queued")
     error_message: Mapped[str | None] = mapped_column(Text)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_owner: Mapped[str | None] = mapped_column(String(100), index=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    execution_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    execution_metadata: Mapped[dict | None] = mapped_column(SQLAlchemyJSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -312,6 +352,13 @@ Index(
     UploadedFile.workspace_id,
     UploadedFile.created_at,
 )
+Index(
+    "idx_jobs_dispatch",
+    ProcessingJob.status,
+    ProcessingJob.next_run_at,
+    ProcessingJob.lease_expires_at,
+)
+Index("uq_records_job", ExtractedRecord.job_id, unique=True)
 Index(
     "idx_jobs_tenant_status",
     ProcessingJob.organization_id,

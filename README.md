@@ -568,4 +568,24 @@ npm run build
 
 ## Resume Positioning
 
+## Durable workers (V1.2)
+
+Jobs move through `queued -> running -> completed` or terminal `failed`. The standalone worker
+atomically claims a queued job, assigns an execution ID, and holds a heartbeat lease. If its
+process dies, the lease expires and any worker recovers the job. Retryable failures are rescheduled
+with persisted exponential backoff; terminal errors remain visible through the job and extraction
+error APIs. Extracted records are unique per job so retries do not duplicate the document result.
+
+Run the worker locally, independently from FastAPI:
+
+```bash
+python -m app.workers.run
+```
+
+Use `WORKER_POLL_INTERVAL_SECONDS`, `WORKER_LEASE_DURATION_SECONDS`,
+`WORKER_HEARTBEAT_INTERVAL_SECONDS`, `WORKER_MAX_ATTEMPTS`, `WORKER_RETRY_BASE_SECONDS`, and
+`WORKER_RETRY_MAX_SECONDS` to tune it. Docker Compose includes a `worker` service. This
+database-backed contract can later accept Redis/Celery/RQ or a cloud queue as a notification layer
+without replacing job state, leases, or idempotency controls.
+
 VendorOps AI demonstrates backend engineering, data engineering, AI extraction workflows, structured validation, pipeline reliability, and production-style API design.

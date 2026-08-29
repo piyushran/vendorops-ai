@@ -47,6 +47,7 @@ async def run_document_pipeline(
     organization_id: UUID | None = None,
     workspace_id: UUID | None = None,
     job: ProcessingJob | None = None,
+    manage_job_status: bool = True,
 ) -> DocumentPipelineResult:
     if job is not None:
         organization_id = organization_id or (
@@ -81,7 +82,8 @@ async def run_document_pipeline(
     elif job.pipeline != "document_extraction":
         raise PipelineInputError(f"Unsupported pipeline '{job.pipeline}'.")
 
-    job = await update_processing_job_status(session, job=job, status="running")
+    if manage_job_status:
+        job = await update_processing_job_status(session, job=job, status="running")
     job_id = UUID(job.id)
     log_event(
         logger,
@@ -185,7 +187,8 @@ async def run_document_pipeline(
             stage="validate",
             finding_count=len(findings),
         )
-        job = await update_processing_job_status(session, job=job, status="completed")
+        if manage_job_status:
+            job = await update_processing_job_status(session, job=job, status="completed")
         log_event(
             logger,
             logging.INFO,
@@ -203,23 +206,20 @@ async def run_document_pipeline(
             error_type=type(cause).__name__,
             message=str(cause),
             retryable=False,
-            attempt=(
-                exc.attempts
-                if isinstance(exc, RetryExhaustedError)
-                else 1
-            ),
+            attempt=(exc.attempts if isinstance(exc, RetryExhaustedError) else 1),
             organization_id=organization_id,
             workspace_id=workspace_id,
             job_id=job_id,
             file_id=file_id,
             details={"pipeline": job.pipeline},
         )
-        await update_processing_job_status(
-            session,
-            job=job,
-            status="failed",
-            error_message=str(exc),
-        )
+        if manage_job_status:
+            await update_processing_job_status(
+                session,
+                job=job,
+                status="failed",
+                error_message=str(exc),
+            )
         log_event(
             logger,
             logging.ERROR,

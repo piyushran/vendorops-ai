@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     log_format: str = "json"
     extraction_max_attempts: int = Field(default=3, ge=1, le=5)
     extraction_retry_base_seconds: float = Field(default=0.4, ge=0.0, le=10.0)
+    worker_poll_interval_seconds: float = Field(default=1.0, ge=0.05, le=60.0)
+    worker_lease_duration_seconds: float = Field(default=60.0, ge=1.0, le=3600.0)
+    worker_heartbeat_interval_seconds: float = Field(default=15.0, ge=0.2, le=1800.0)
+    worker_max_attempts: int = Field(default=3, ge=1, le=100)
+    worker_retry_base_seconds: float = Field(default=5.0, ge=0.0, le=3600.0)
+    worker_retry_max_seconds: float = Field(default=300.0, ge=0.0, le=86400.0)
     llm_input_cost_per_1k_tokens: float = Field(default=0.0004, ge=0.0)
     llm_output_cost_per_1k_tokens: float = Field(default=0.0016, ge=0.0)
     auth_token_ttl_hours: int = Field(default=12, ge=1, le=720)
