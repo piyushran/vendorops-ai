@@ -2,6 +2,7 @@ import asyncio
 
 from fastapi.testclient import TestClient
 
+from app.api.main import app
 from app.auth.service import seed_default_identity
 from app.config.settings import Settings, get_settings
 from app.db.session import get_sessionmaker
@@ -37,7 +38,8 @@ def wait_for_job(
     expected_status: str = "completed",
 ) -> dict:
     """Drive one standalone worker iteration, then poll the durable job state."""
-    settings = get_settings()
+    settings_provider = app.dependency_overrides.get(get_settings, get_settings)
+    settings = settings_provider()
     asyncio.run(DocumentWorker(settings, worker_id="test-worker").run_once())
 
     response = client.get(f"/v1/jobs/{job_id}", headers=headers)
