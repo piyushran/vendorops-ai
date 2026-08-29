@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import PurePath
 
 
 _SAFE_SEGMENT = re.compile(r"[^A-Za-z0-9._-]+")
@@ -14,7 +15,8 @@ def artifact_key(workspace_id: str, artifact_id: str, filename: str | None = Non
     artifact = _safe_segment(artifact_id, "artifact_id")
     suffix = ""
     if filename:
-        safe_name = _safe_segment(filename, "filename")
+        safe_name = PurePath(filename).name
+        safe_name = _safe_segment(safe_name, "filename")
         suffix = f"/{safe_name}"
     return f"workspaces/{workspace}/artifacts/{artifact}{suffix}"
 
