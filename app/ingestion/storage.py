@@ -1,12 +1,12 @@
 import re
 from dataclasses import dataclass
-from hashlib import sha256
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import UploadFile
 
 from app.storage.backends import ObjectStorageBackend
+from app.storage.integrity import sha256_bytes
 from app.storage.keying import artifact_key
 
 ALLOWED_FILE_EXTENSIONS = {".csv", ".eml", ".pdf", ".txt"}
@@ -53,7 +53,7 @@ async def store_upload(
         raise ValueError("Uploaded file is empty.")
 
     file_id = str(uuid4())
-    digest = sha256(content).hexdigest()
+    digest = sha256_bytes(content)
     object_key = artifact_key(workspace_id, file_id, original_filename)
     stored_object = storage.put_bytes(
         key=object_key,
