@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 
 from app.db.models import ProcessingJob
 from app.db.session import get_sessionmaker
-from app.workers.durable import FAILED, QUEUED, recover_expired_jobs, request_job_run
+from app.workers.durable import FAILED, QUEUED, recover_expired_jobs
 
 
 def test_expired_job_becomes_terminal_after_max_attempts(test_app) -> None:
@@ -58,6 +58,7 @@ def test_run_endpoint_requeues_failed_job(test_app) -> None:
         headers=headers,
         json={"file_id": upload.json()["file_id"]},
     )
+    assert created.status_code == 201
     job_id = created.json()["job_id"]
 
     async def fail_job() -> None:
