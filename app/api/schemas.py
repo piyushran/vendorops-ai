@@ -35,6 +35,12 @@ class ProcessingJobResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     error_message: str | None = None
+    attempts: int = 0
+    max_attempts: int = 3
+    next_run_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    failed_at: datetime | None = None
 
 
 class HealthResponse(BaseModel):
