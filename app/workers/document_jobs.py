@@ -6,8 +6,6 @@ import time
 from collections.abc import Awaitable, Callable
 from uuid import UUID, uuid4
 
-from fastapi import BackgroundTasks
-
 from app.config.settings import Settings
 from app.db.models import ProcessingJob
 from app.db.repositories import create_extraction_error
@@ -24,21 +22,6 @@ from app.workers.durable import (
 
 logger = get_logger(__name__)
 JobHandler = Callable[[ProcessingJob], Awaitable[None]]
-
-
-def enqueue_document_job(
-    background_tasks: BackgroundTasks,
-    *,
-    settings: Settings,
-    job_id: UUID,
-) -> None:
-    """Development compatibility path; production uses `python -m app.workers.run`."""
-    background_tasks.add_task(execute_document_job, settings=settings, job_id=job_id)
-
-
-async def execute_document_job(*, settings: Settings, job_id: UUID) -> None:
-    del job_id
-    await DocumentWorker(settings).run_once()
 
 
 class DocumentWorker:

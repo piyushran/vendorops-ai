@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import require_permission_dependency, tenant_ids
@@ -23,7 +23,6 @@ from app.ingestion.storage import store_upload
 from app.parsers.dispatcher import parse_file
 from app.parsers.models import ParserError
 from app.storage.factory import get_object_storage
-from app.workers.document_jobs import enqueue_document_job
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -110,8 +109,6 @@ async def parse_uploaded_file(
 )
 async def extract_uploaded_file(
     file_id: UUID,
-    background_tasks: BackgroundTasks,
-    settings: Annotated[Settings, Depends(get_settings)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     context: Annotated[AuthContext, Depends(require_permission_dependency("pipeline:write"))],
 ) -> ProcessingJobResponse:
@@ -135,7 +132,7 @@ async def extract_uploaded_file(
         pipeline="document_extraction",
         organization_id=organization_id,
         workspace_id=workspace_id,
+        max_attempts=get_settings().worker_max_attempts,
     )
-    enqueue_document_job(background_tasks, settings=settings, job_id=UUID(job.id))
 
     return to_processing_job_response(job)

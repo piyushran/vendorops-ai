@@ -2,9 +2,11 @@ import asyncio
 
 from fastapi.testclient import TestClient
 
+from app.api.main import app
 from app.auth.service import seed_default_identity
-from app.config.settings import Settings
+from app.config.settings import Settings, get_settings
 from app.db.session import get_sessionmaker
+from app.workers.document_jobs import DocumentWorker
 
 
 def seed_demo_identity(database_url: str, settings: Settings) -> None:
@@ -35,13 +37,14 @@ def wait_for_job(
     *,
     expected_status: str = "completed",
 ) -> dict:
-    latest_payload = {}
-    for _ in range(5):
-        response = client.get(f"/v1/jobs/{job_id}", headers=headers)
-        assert response.status_code == 200
-        latest_payload = response.json()
-        if latest_payload["status"] in {"completed", "failed"}:
-            break
+    """Drive one standalone worker iteration, then poll the durable job state."""
+    settings_provider = app.dependency_overrides.get(get_settings, get_settings)
+    settings = settings_provider()
+    asyncio.run(DocumentWorker(settings, worker_id="test-worker").run_once())
+
+    response = client.get(f"/v1/jobs/{job_id}", headers=headers)
+    assert response.status_code == 200
+    latest_payload = response.json()
     assert latest_payload["status"] == expected_status
     return latest_payload
 
