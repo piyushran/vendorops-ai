@@ -68,6 +68,13 @@ class S3ObjectStorage:
                 return False
             raise StorageError(f"Failed to inspect S3 object '{uri}'.") from exc
 
+    def delete(self, uri: str) -> None:
+        bucket, key = self._parse_uri(uri)
+        try:
+            self.client.delete_object(Bucket=bucket, Key=key)
+        except Exception as exc:
+            raise StorageError(f"Failed to delete S3 object '{uri}'.") from exc
+
     def presign_get(self, uri: str, *, expires_in: int = 900) -> str:
         bucket, key = self._parse_uri(uri)
         try:
