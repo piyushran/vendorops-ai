@@ -7,6 +7,7 @@ from uuid import uuid4
 from fastapi import UploadFile
 
 from app.storage.backends import ObjectStorageBackend
+from app.storage.keying import artifact_key
 
 ALLOWED_FILE_EXTENSIONS = {".csv", ".eml", ".pdf", ".txt"}
 CHUNK_SIZE_BYTES = 1024 * 1024
@@ -42,6 +43,7 @@ async def store_upload(
     upload_file: UploadFile,
     storage: ObjectStorageBackend,
     *,
+    workspace_id: str,
     max_size_bytes: int,
 ) -> StoredUpload:
     original_filename = validate_upload_filename(upload_file.filename)
@@ -52,7 +54,7 @@ async def store_upload(
 
     file_id = str(uuid4())
     digest = sha256(content).hexdigest()
-    object_key = f"uploads/{file_id}/{original_filename}"
+    object_key = artifact_key(workspace_id, file_id, original_filename)
     stored_object = storage.put_bytes(
         key=object_key,
         content=content,
