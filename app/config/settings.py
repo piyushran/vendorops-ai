@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = Field(default=25, ge=1, le=250)
     local_storage_dir: Path = Field(default=Path("./storage"))
     reports_dir: Path = Field(default=Path("./reports_out"))
+    s3_bucket: str | None = None
+    s3_region: str | None = None
+    s3_endpoint_url: str | None = None
+    s3_prefix: str = "vendorops"
+    s3_presign_ttl_seconds: int = Field(default=900, ge=60, le=86400)
 
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"

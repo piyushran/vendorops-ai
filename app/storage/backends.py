@@ -32,6 +32,9 @@ class ObjectStorageBackend(Protocol):
     def exists(self, uri: str) -> bool:
         """Return whether a storage URI exists."""
 
+    def delete(self, uri: str) -> None:
+        """Delete a stored object."""
+
 
 class LocalObjectStorage:
     name = "local"
@@ -60,6 +63,14 @@ class LocalObjectStorage:
     def exists(self, uri: str) -> bool:
         path = self._path_from_uri(uri)
         return path.exists() and path.is_file()
+
+    def delete(self, uri: str) -> None:
+        path = self._path_from_uri(uri)
+        if not path.exists():
+            return
+        if not path.is_file():
+            raise StorageError(f"Stored object '{uri}' is not a file.")
+        path.unlink()
 
     def _path_for_key(self, key: str) -> Path:
         candidate = (self.root_dir / key).resolve()
