@@ -31,9 +31,15 @@ _ALLOWED: dict[VendorCaseState, frozenset[VendorCaseState]] = {
         VendorCaseState.READY_FOR_APPROVAL,
         VendorCaseState.FAILED,
     }),
-    VendorCaseState.READY_FOR_APPROVAL: frozenset({VendorCaseState.APPROVED, VendorCaseState.FAILED}),
+    VendorCaseState.READY_FOR_APPROVAL: frozenset({
+        VendorCaseState.APPROVED,
+        VendorCaseState.FAILED,
+    }),
     VendorCaseState.APPROVED: frozenset({VendorCaseState.EXECUTING}),
-    VendorCaseState.EXECUTING: frozenset({VendorCaseState.COMPLETED, VendorCaseState.FAILED}),
+    VendorCaseState.EXECUTING: frozenset({
+        VendorCaseState.COMPLETED,
+        VendorCaseState.FAILED,
+    }),
     VendorCaseState.COMPLETED: frozenset(),
     VendorCaseState.FAILED: frozenset(),
 }
@@ -44,7 +50,7 @@ class VendorCase:
     case_id: str
     state: VendorCaseState = VendorCaseState.RECEIVED
 
-    def transition(self, target: VendorCaseState) -> "VendorCase":
+    def transition(self, target: VendorCaseState) -> VendorCase:
         """Return a new case after validating the requested transition."""
         allowed = _ALLOWED[self.state]
         if target not in allowed:
