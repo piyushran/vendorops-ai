@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     log_format: str = "json"
     extraction_max_attempts: int = Field(default=3, ge=1, le=5)
     extraction_retry_base_seconds: float = Field(default=0.4, ge=0.0, le=10.0)
+    extraction_review_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
     worker_poll_interval_seconds: float = Field(default=1.0, ge=0.05, le=60.0)
     worker_lease_duration_seconds: float = Field(default=60.0, ge=1.0, le=3600.0)
     worker_heartbeat_interval_seconds: float = Field(default=15.0, ge=0.2, le=1800.0)
