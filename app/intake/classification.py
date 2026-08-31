@@ -24,11 +24,31 @@ class ClassificationResult:
 
 
 _PATTERNS: tuple[tuple[DocumentClass, tuple[str, ...]], ...] = (
-    (DocumentClass.INVOICE, (r"\binvoice\b", r"\binv[\s_-]?(?:no|number)\b", r"tax invoice")),
-    (DocumentClass.PURCHASE_ORDER, (r"\bpurchase[\s_-]?order\b", r"\bpo[\s_-]?(?:no|number)\b")),
-    (DocumentClass.CONTRACT, (r"\bcontract\b", r"\bagreement\b", r"terms and conditions")),
-    (DocumentClass.TAX_DOCUMENT, (r"\btax\b", r"gst", r"vat", r"withholding", r"tax certificate")),
-    (DocumentClass.VENDOR_MASTER, (r"vendor master", r"supplier master", r"vendor registration", r"supplier registration")),
+    (
+        DocumentClass.INVOICE,
+        (r"\binvoice\b", r"\binv[\s_-]?(?:no|number)\b", r"tax invoice"),
+    ),
+    (
+        DocumentClass.PURCHASE_ORDER,
+        (r"\bpurchase[\s_-]?order\b", r"\bpo[\s_-]?(?:no|number)\b"),
+    ),
+    (
+        DocumentClass.CONTRACT,
+        (r"\bcontract\b", r"\bagreement\b", r"terms and conditions"),
+    ),
+    (
+        DocumentClass.TAX_DOCUMENT,
+        (r"\btax\b", r"gst", r"vat", r"withholding", r"tax certificate"),
+    ),
+    (
+        DocumentClass.VENDOR_MASTER,
+        (
+            r"vendor master",
+            r"supplier master",
+            r"vendor registration",
+            r"supplier registration",
+        ),
+    ),
 )
 
 
