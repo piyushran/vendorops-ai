@@ -176,8 +176,10 @@ async def run_document_pipeline(
             organization_id=organization_id,
             workspace_id=workspace_id,
             extracted=extracted_record,
-            raw_payload=extraction_result.model_copy(update={"record": extracted_record}).model_dump(
-                mode="json"
+            raw_payload=(
+                extraction_result.model_copy(
+                    update={"record": extracted_record}
+                ).model_dump(mode="json")
             ),
         )
         validation_errors = await create_validation_errors(
