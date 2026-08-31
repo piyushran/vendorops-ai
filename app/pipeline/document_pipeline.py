@@ -166,9 +166,7 @@ async def run_document_pipeline(
             or extraction_result.record.confidence < settings.extraction_review_threshold
             or any(finding.severity.value in {"warning", "error"} for finding in findings)
         )
-        extracted_record = extraction_result.record.model_copy(
-            update={"needs_review": needs_review}
-        )
+        extracted_record = extraction_result.record.model_copy(update={"needs_review": needs_review})
         record = await create_extracted_record(
             session,
             file_id=file_id,
