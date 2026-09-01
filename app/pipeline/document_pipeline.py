@@ -166,7 +166,9 @@ async def run_document_pipeline(
             or extraction_result.record.confidence < settings.extraction_review_threshold
             or any(finding.severity.value in {"warning", "error"} for finding in findings)
         )
-        extracted_record = extraction_result.record.model_copy(update={"needs_review": needs_review})
+        extracted_record = extraction_result.record.model_copy(
+            update={"needs_review": needs_review}
+        )
         record = await create_extracted_record(
             session,
             file_id=file_id,
@@ -174,8 +176,10 @@ async def run_document_pipeline(
             organization_id=organization_id,
             workspace_id=workspace_id,
             extracted=extracted_record,
-            raw_payload=extraction_result.model_copy(update={"record": extracted_record}).model_dump(
-                mode="json"
+            raw_payload=(
+                extraction_result.model_copy(
+                    update={"record": extracted_record}
+                ).model_dump(mode="json")
             ),
         )
         validation_errors = await create_validation_errors(
