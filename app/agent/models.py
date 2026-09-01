@@ -39,7 +39,9 @@ class AgentRun(Base):
     organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     workspace_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     case_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default=AgentRunStatus.QUEUED.value)
+    status: Mapped[str] = mapped_column(
+        String(50), nullable=False, default=AgentRunStatus.QUEUED.value
+    )
     requested_action: Mapped[str] = mapped_column(String(100), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     input_payload: Mapped[dict] = mapped_column(SQLAlchemyJSON, nullable=False, default=dict)
@@ -49,7 +51,9 @@ class AgentRun(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
 
 
 class ToolExecution(Base):
@@ -65,7 +69,9 @@ class ToolExecution(Base):
     organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     workspace_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     tool_name: Mapped[str] = mapped_column(String(120), nullable=False)
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default=ToolExecutionStatus.REQUESTED.value)
+    status: Mapped[str] = mapped_column(
+        String(50), nullable=False, default=ToolExecutionStatus.REQUESTED.value
+    )
     permission_scope: Mapped[str] = mapped_column(String(255), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     input_payload: Mapped[dict] = mapped_column(SQLAlchemyJSON, nullable=False, default=dict)
@@ -75,5 +81,15 @@ class ToolExecution(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-Index("idx_agent_runs_tenant_status", AgentRun.organization_id, AgentRun.workspace_id, AgentRun.status)
-Index("idx_tool_executions_tenant_status", ToolExecution.organization_id, ToolExecution.workspace_id, ToolExecution.status)
+Index(
+    "idx_agent_runs_tenant_status",
+    AgentRun.organization_id,
+    AgentRun.workspace_id,
+    AgentRun.status,
+)
+Index(
+    "idx_tool_executions_tenant_status",
+    ToolExecution.organization_id,
+    ToolExecution.workspace_id,
+    ToolExecution.status,
+)
