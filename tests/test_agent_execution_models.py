@@ -4,6 +4,14 @@ from app.agent.models import AgentRun, AgentRunStatus, ToolExecution, ToolExecut
 
 
 def test_agent_run_defaults_support_durable_execution() -> None:
+    status_default = AgentRun.__table__.c.status.default
+    attempt_default = AgentRun.__table__.c.attempt.default
+
+    assert status_default is not None
+    assert attempt_default is not None
+    assert status_default.arg == AgentRunStatus.QUEUED.value
+    assert attempt_default.arg == 0
+
     run = AgentRun(
         organization_id="org-1",
         workspace_id="ws-1",
@@ -13,12 +21,15 @@ def test_agent_run_defaults_support_durable_execution() -> None:
         input_payload={"vendor_id": "v-1"},
     )
 
-    assert run.status == AgentRunStatus.QUEUED.value
-    assert run.attempt == 0
     assert run.result_payload is None
 
 
 def test_tool_execution_carries_tenant_scope_and_idempotency() -> None:
+    status_default = ToolExecution.__table__.c.status.default
+
+    assert status_default is not None
+    assert status_default.arg == ToolExecutionStatus.REQUESTED.value
+
     execution = ToolExecution(
         agent_run_id="run-1",
         organization_id="org-1",
@@ -29,7 +40,6 @@ def test_tool_execution_carries_tenant_scope_and_idempotency() -> None:
         input_payload={"vendor_id": "v-1"},
     )
 
-    assert execution.status == ToolExecutionStatus.REQUESTED.value
     assert execution.permission_scope == "vendor.write"
     assert execution.idempotency_key == "tool-run-1-update-vendor"
 
