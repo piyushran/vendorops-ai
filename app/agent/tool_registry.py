@@ -101,7 +101,11 @@ class ToolRegistry:
             RiskClass.HIGH: 2,
             RiskClass.CRITICAL: 3,
         }
-        max_risk_rank = risk_rank[max_risk] if max_risk is not None else risk_rank[RiskClass.CRITICAL]
+        max_risk_rank = (
+            risk_rank[max_risk]
+            if max_risk is not None
+            else risk_rank[RiskClass.CRITICAL]
+        )
 
         visible = [
             tool
