@@ -126,7 +126,10 @@ class PolicyGate:
 
         if request.tool.side_effect is SideEffectClass.WRITE:
             if request.action not in self.policy.writable_actions:
-                return self._deny(request, "write action is not explicitly allowed")
+                return self._deny(
+                    request,
+                    "write action is not explicitly allowed; approval is required for writes",
+                )
             if self.policy.require_approval_for_writes:
                 if approval is None or not approval.is_valid_for(request, current_time):
                     return self._deny(request, "valid approval for the exact action is required")
