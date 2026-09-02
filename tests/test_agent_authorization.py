@@ -43,7 +43,7 @@ def test_deny_by_default_for_write_without_explicit_policy(tools):
     decision = gate.authorize(request)
 
     assert decision.allowed is False
-    assert "approval" in decision.reason
+    assert "explicitly allowed" in decision.reason
 
 
 def test_read_action_can_be_authorized_without_approval(tools):
