@@ -23,14 +23,13 @@ class AuthorizationRequest:
     input_payload: dict[str, Any]
     capabilities: frozenset[str]
     resource_id: str | None = None
-    approval_id: str | None = None
-    approval_fingerprint: str | None = None
 
     @property
     def action_fingerprint(self) -> str:
         canonical = {
             "organization_id": self.organization_id,
             "workspace_id": self.workspace_id,
+            "actor_id": self.actor_id,
             "action": self.action,
             "tool": self.tool.identity,
             "input_payload": self.input_payload,
@@ -103,6 +102,9 @@ class PolicyGate:
     ) -> AuthorizationDecision:
         fingerprint = request.action_fingerprint
         current_time = now or datetime.now(UTC)
+
+        if request.action != request.tool.name:
+            return self._deny(request, "authorization action must match the registered tool name")
 
         if request.tool.required_capabilities - self.policy.allowed_capabilities:
             return self._deny(request, "required capability is not allowed by policy")
