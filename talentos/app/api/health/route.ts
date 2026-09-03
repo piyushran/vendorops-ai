@@ -1,0 +1,1 @@
+export async function GET(){return Response.json({status:'ok',service:'talentos',version:'0.2.0',timestamp:new Date().toISOString(),capabilities:['intelligence','ai-reputation','campaigns','agent-runtime']})}
