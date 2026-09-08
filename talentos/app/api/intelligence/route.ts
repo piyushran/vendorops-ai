@@ -1,0 +1,1 @@
+import {segments,competitors,signals,recommendations} from '@/lib/data';export async function GET(){return Response.json({generatedAt:new Date().toISOString(),brandScore:74,segments,competitors,signals,opportunities:recommendations})}

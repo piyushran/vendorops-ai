@@ -1,0 +1,1 @@
+import {Card} from './ui';export function Metric({label,value,delta,sub}:{label:string;value:string;delta?:string;sub?:string}){return <Card className="metric"><div className="label">{label}</div><div className="metricValue"><strong>{value}</strong>{delta&&<span className="delta">{delta}</span>}</div>{sub&&<div className="sub">{sub}</div>}</Card>}

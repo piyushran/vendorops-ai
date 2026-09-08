@@ -1,0 +1,1 @@
+Agent orchestration boundary. Replace the deterministic demo response with the production agent runtime while preserving the approval and evidence contracts.
