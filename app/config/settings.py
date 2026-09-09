@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"
 
+    # Optional self-hosted ERPNext reference connector. Credentials are never stored
+    # in source control; production deployments should inject them through secrets.
+    erpnext_base_url: str | None = None
+    erpnext_api_key: str | None = None
+    erpnext_api_secret: str | None = None
+    erpnext_timeout_seconds: float = Field(default=20.0, ge=1.0, le=120.0)
+
     log_level: str = "INFO"
     log_format: str = "json"
     extraction_max_attempts: int = Field(default=3, ge=1, le=5)
