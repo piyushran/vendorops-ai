@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.agent.authorization import ApprovalGrant, AuthorizationRequest, Policy, PolicyGate
 from app.agent.durable_execution import DurableExecutionEngine
-from app.agent.models import AgentRun, ToolExecution, ToolExecutionStatus
+from app.agent.models import AgentRun, AgentRunStatus, ToolExecution, ToolExecutionStatus
 from app.agent.tool_registry import RiskClass, ScopeLevel, SideEffectClass, ToolDefinition
 from app.db.base import Base
 
