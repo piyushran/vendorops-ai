@@ -3,13 +3,11 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.agent.authorization import PolicyGate
 from app.agent.durable_execution import DurableExecutionEngine
 from app.agent.models import AgentRun, AgentRunStatus
-from app.agent.tool_registry import Policy  # type: ignore[attr-defined]
 from app.db.base import Base
 
 
@@ -34,7 +32,7 @@ async def test_expired_lease_can_be_reclaimed(session: AsyncSession) -> None:
     session.add(run)
     await session.commit()
 
-    engine = DurableExecutionEngine(session, PolicyGate(None), lease_seconds=30)  # type: ignore[arg-type]
+    engine = DurableExecutionEngine(session, object(), lease_seconds=30)
     assert await engine._claim(run.id, "new-worker", datetime.now(UTC)) is True
     refreshed = await session.scalar(select(AgentRun).where(AgentRun.id == run.id))
     assert refreshed is not None
