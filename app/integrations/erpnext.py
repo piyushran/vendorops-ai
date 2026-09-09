@@ -54,6 +54,10 @@ class ERPNextConnector(ExecutionAdapter):
             )
         return {"healthy": True, "user": response.json().get("message")}
 
+    @staticmethod
+    def _idempotency_remark(idempotency_key: str) -> str:
+        return f"VendorOps-Idempotency-Key: {idempotency_key}"
+
     def execute(
         self,
         tool: ToolDefinition,
@@ -64,15 +68,14 @@ class ERPNextConnector(ExecutionAdapter):
         if tool.name != "create_vendor_invoice":
             raise ERPNextConnectorError(f"Unsupported ERPNext tool: {tool.name}")
 
-        # The idempotency key is persisted into the external document as a stable
-        # reference. VendorOps must still reconcile by this key after an ambiguous
-        # network outcome before retrying a write.
+        # Use the standard Purchase Invoice remarks field so the reference
+        # deployment needs no custom ERPNext app or custom DocType field.
         invoice = {
             "doctype": "Purchase Invoice",
             "supplier": payload["vendor_id"],
             "currency": payload["currency"],
             "grand_total": payload["amount"],
-            "vendorops_idempotency_key": idempotency_key,
+            "remarks": self._idempotency_remark(idempotency_key),
         }
         response = self._client.post(
             f"{self.base_url}/api/resource/Purchase Invoice",
@@ -122,16 +125,19 @@ class ERPNextConnector(ExecutionAdapter):
             and data.get("supplier") == payload["vendor_id"]
             and float(data.get("grand_total", 0)) == float(payload["amount"])
             and data.get("currency") == payload["currency"]
+            and data.get("remarks") == self._idempotency_remark(output["idempotency_key"])
         )
         return {"verified": verified, "external_id": external_id}
 
     def find_by_idempotency_key(self, idempotency_key: str) -> dict[str, Any] | None:
-        """Find an invoice created by VendorOps before an ambiguous retry."""
+        """Find an invoice created before an ambiguous retry."""
         response = self._client.get(
             f"{self.base_url}/api/resource/Purchase Invoice",
             headers=self._headers,
             params={
-                "filters": f'[["vendorops_idempotency_key","=","{idempotency_key}"]]'
+                "filters": (
+                    f'[["remarks","=","{self._idempotency_remark(idempotency_key)}"]]'
+                )
             },
         )
         if response.status_code >= 400:
