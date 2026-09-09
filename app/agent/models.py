@@ -27,9 +27,11 @@ class ToolExecutionStatus(StrEnum):
     REQUESTED = "requested"
     APPROVED = "approved"
     RUNNING = "running"
+    VERIFYING = "verifying"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     REJECTED = "rejected"
+    NEEDS_RECONCILIATION = "needs_reconciliation"
 
 
 class AgentRun(Base):
@@ -39,57 +41,40 @@ class AgentRun(Base):
     organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     workspace_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     case_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default=AgentRunStatus.QUEUED.value
-    )
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default=AgentRunStatus.QUEUED.value)
     requested_action: Mapped[str] = mapped_column(String(100), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     input_payload: Mapped[dict] = mapped_column(SQLAlchemyJSON, nullable=False, default=dict)
     result_payload: Mapped[dict | None] = mapped_column(SQLAlchemyJSON)
     error_message: Mapped[str | None] = mapped_column(Text)
     attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lease_owner: Mapped[str | None] = mapped_column(String(120), index=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utc_now, onupdate=utc_now
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
 
 class ToolExecution(Base):
     __tablename__ = "tool_executions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
-    agent_run_id: Mapped[str] = mapped_column(
-        String(36),
-        ForeignKey("agent_runs.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
+    agent_run_id: Mapped[str] = mapped_column(String(36), ForeignKey("agent_runs.id", ondelete="CASCADE"), nullable=False, index=True)
     organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     workspace_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     tool_name: Mapped[str] = mapped_column(String(120), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default=ToolExecutionStatus.REQUESTED.value
-    )
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default=ToolExecutionStatus.REQUESTED.value)
     permission_scope: Mapped[str] = mapped_column(String(255), nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     input_payload: Mapped[dict] = mapped_column(SQLAlchemyJSON, nullable=False, default=dict)
     output_payload: Mapped[dict | None] = mapped_column(SQLAlchemyJSON)
     error_message: Mapped[str | None] = mapped_column(Text)
+    lease_owner: Mapped[str | None] = mapped_column(String(120), index=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-Index(
-    "idx_agent_runs_tenant_status",
-    AgentRun.organization_id,
-    AgentRun.workspace_id,
-    AgentRun.status,
-)
-Index(
-    "idx_tool_executions_tenant_status",
-    ToolExecution.organization_id,
-    ToolExecution.workspace_id,
-    ToolExecution.status,
-)
+Index("idx_agent_runs_tenant_status", AgentRun.organization_id, AgentRun.workspace_id, AgentRun.status)
+Index("idx_tool_executions_tenant_status", ToolExecution.organization_id, ToolExecution.workspace_id, ToolExecution.status)
