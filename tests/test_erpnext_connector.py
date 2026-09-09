@@ -44,7 +44,14 @@ def test_find_by_idempotency_key_supports_ambiguous_outcome_reconciliation() -> 
         assert "invoice-write-2" in str(request.url)
         return httpx.Response(
             200,
-            json={"data": [{"name": "ACC-PINV-0002", "remarks": "VendorOps-Idempotency-Key: invoice-write-2"}]},
+            json={
+                "data": [
+                    {
+                        "name": "ACC-PINV-0002",
+                        "remarks": "VendorOps-Idempotency-Key: invoice-write-2",
+                    }
+                ]
+            },
         )
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
