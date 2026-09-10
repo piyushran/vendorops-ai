@@ -18,6 +18,7 @@ class ExecutionStatus(StrEnum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     REJECTED = "rejected"
+    NEEDS_RECONCILIATION = "needs_reconciliation"
 
 
 @dataclass(frozen=True, slots=True)
