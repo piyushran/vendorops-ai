@@ -6,6 +6,7 @@ approval, idempotency and execution state; ERPNext owns the external document.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
@@ -67,6 +68,23 @@ class ERPNextConnector(ExecutionAdapter):
     ) -> dict[str, Any]:
         if tool.name != "create_vendor_invoice":
             raise ERPNextConnectorError(f"Unsupported ERPNext tool: {tool.name}")
+
+        # Preflight the external system. This closes the important retry window
+        # where ERPNext committed the invoice but the caller lost the response.
+        existing = self.find_by_idempotency_key(idempotency_key)
+        if existing:
+            external_id = existing.get("name")
+            if not external_id:
+                raise ERPNextConnectorError(
+                    "ERPNext returned an idempotency match without a document name"
+                )
+            return {
+                "external_id": external_id,
+                "status": existing.get("status", "created"),
+                "amount": existing.get("grand_total", payload["amount"]),
+                "idempotency_key": idempotency_key,
+                "reused_existing": True,
+            }
 
         # Use the standard Purchase Invoice remarks field so the reference
         # deployment needs no custom ERPNext app or custom DocType field.
@@ -131,18 +149,21 @@ class ERPNextConnector(ExecutionAdapter):
 
     def find_by_idempotency_key(self, idempotency_key: str) -> dict[str, Any] | None:
         """Find an invoice created before an ambiguous retry."""
+        filter_value = json.dumps(
+            [["remarks", "=", self._idempotency_remark(idempotency_key)]]
+        )
         response = self._client.get(
             f"{self.base_url}/api/resource/Purchase Invoice",
             headers=self._headers,
-            params={
-                "filters": (
-                    f'[["remarks","=","{self._idempotency_remark(idempotency_key)}"]]'
-                )
-            },
+            params={"filters": filter_value, "limit_page_length": 2},
         )
         if response.status_code >= 400:
             raise ERPNextConnectorError(
                 f"ERPNext reconciliation failed with HTTP {response.status_code}"
             )
         rows = response.json().get("data") or []
+        if len(rows) > 1:
+            raise ERPNextConnectorError(
+                "ERPNext contains multiple documents for one VendorOps idempotency key"
+            )
         return rows[0] if rows else None
