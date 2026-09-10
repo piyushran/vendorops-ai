@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.agent.authorization import ApprovalGrant, AuthorizationRequest, Policy, PolicyGate
-from app.agent.durable_execution import DurableExecutionEngine
+from app.agent.durable_execution import DurableExecutionEngine, DurableExecutionError
 from app.agent.models import AgentRun, AgentRunStatus, ToolExecution, ToolExecutionStatus
 from app.agent.tool_registry import RiskClass, ScopeLevel, SideEffectClass, ToolDefinition
 from app.db.base import Base
@@ -92,12 +92,34 @@ async def test_persists_one_run_and_one_tool_execution(session: AsyncSession) ->
 
 
 @pytest.mark.asyncio
+async def test_idempotency_key_cannot_cross_tenant_or_change_payload(session: AsyncSession) -> None:
+    request, approval = request_and_approval()
+    policy = Policy(allowed_capabilities=frozenset({"ap.invoice.write"}), max_risk=RiskClass.HIGH, writable_actions=frozenset({request.action}))
+    adapter = FakeAdapter()
+    engine = DurableExecutionEngine(session, PolicyGate(policy))
+    await engine.execute(request, approval=approval, adapter=adapter, idempotency_key="tenant-safe-1", case_id="case-1")
+
+    cross_tenant = request.model_copy(update={"organization_id": "org-2"})
+    with pytest.raises(DurableExecutionError, match="different tenant"):
+        await engine.execute(cross_tenant, approval=None, adapter=adapter, idempotency_key="tenant-safe-1", case_id="case-1")
+
+    changed_payload = request.model_copy(
+        update={"input_payload": {"vendor_id": "vendor-1", "amount": 101.0, "currency": "INR"}}
+    )
+    with pytest.raises(DurableExecutionError, match="different tenant"):
+        await engine.execute(changed_payload, approval=None, adapter=adapter, idempotency_key="tenant-safe-1", case_id="case-1")
+
+    assert adapter.execute_calls == 1
+
+
+@pytest.mark.asyncio
 async def test_expired_execution_reconciles_without_replaying_external_write(session: AsyncSession) -> None:
     request, _ = request_and_approval()
     policy = Policy(allowed_capabilities=frozenset({"ap.invoice.write"}), max_risk=RiskClass.HIGH, writable_actions=frozenset({request.action}))
     expired = datetime.now(UTC) - timedelta(seconds=1)
     run = AgentRun(
         organization_id="org-1", workspace_id="ws-1", case_id="case-1", requested_action=request.action,
+        actor_id=request.actor_id, tool_identity=request.tool.identity, action_fingerprint=request.action_fingerprint,
         idempotency_key="crash-1", input_payload=request.input_payload, status=AgentRunStatus.EXECUTING.value,
         attempt=1, lease_owner="dead-worker", lease_expires_at=expired,
     )
