@@ -21,6 +21,7 @@ class AgentRunStatus(StrEnum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    NEEDS_RECONCILIATION = "needs_reconciliation"
 
 
 class ToolExecutionStatus(StrEnum):
