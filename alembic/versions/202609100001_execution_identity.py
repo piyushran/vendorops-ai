@@ -21,9 +21,10 @@ def upgrade() -> None:
     bind.execute(sa.text("UPDATE agent_runs SET tool_identity = requested_action WHERE tool_identity IS NULL"))
     bind.execute(sa.text("UPDATE agent_runs SET action_fingerprint = 'legacy' WHERE action_fingerprint IS NULL"))
 
-    op.alter_column("agent_runs", "actor_id", nullable=False)
-    op.alter_column("agent_runs", "tool_identity", nullable=False)
-    op.alter_column("agent_runs", "action_fingerprint", nullable=False)
+    with op.batch_alter_table("agent_runs") as batch_op:
+        batch_op.alter_column("actor_id", existing_type=sa.String(length=255), nullable=False)
+        batch_op.alter_column("tool_identity", existing_type=sa.String(length=255), nullable=False)
+        batch_op.alter_column("action_fingerprint", existing_type=sa.String(length=128), nullable=False)
 
 
 def downgrade() -> None:
